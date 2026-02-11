@@ -1,0 +1,36 @@
+meta {
+  name: Login
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:8080/api/auth/login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "test@example.com",
+    "password": "Password123"
+  }
+  
+}
+
+tests {
+  test("Login successful", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Profile data check", function() {
+    const data = res.getBody();
+    expect(data.name).to.not.be.null;
+    expect(data.email).to.equal("test@example.com");
+  });
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
