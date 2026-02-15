@@ -1,6 +1,5 @@
 package com.talent.expensemanager.repository;
 
-import com.talent.expensemanager.model.MyWallet;
 import com.talent.expensemanager.model.Transaction;
 import com.talent.expensemanager.model.enums.TransactionType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,16 +11,16 @@ import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<Transaction, String> {
 
-    // View by Type (Income/Expense)
+    // 1. Updated method name from CreatedAt to CreatedDatetime
     List<Transaction> findByWallet_WalletIdAndTransactionTypeAndActiveTrue(String walletId, TransactionType type);
 
-    // View by Date Range
-    List<Transaction> findByWallet_WalletIdAndCreatedAtBetweenAndActiveTrue(
+    // 2. Updated method name from CreatedAtBetween to CreatedDatetimeBetween
+    List<Transaction> findByWallet_WalletIdAndCreatedDatetimeBetweenAndActiveTrue(
             String walletId, LocalDateTime start, LocalDateTime end);
 
-    // Monthly Data Fetch
+    // 3. Updated JPQL query string to use t.createdDatetime
     @Query("SELECT t FROM Transaction t WHERE t.wallet.walletId = :walletId " +
-            "AND t.active = true AND t.createdAt >= :start AND t.createdAt <= :end")
+            "AND t.active = true AND t.createdDatetime >= :start AND t.createdDatetime <= :end")
     List<Transaction> findMonthlyTransactions(@Param("walletId") String walletId,
                                               @Param("start") LocalDateTime start,
                                               @Param("end") LocalDateTime end);

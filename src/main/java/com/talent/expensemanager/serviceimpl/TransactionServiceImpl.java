@@ -130,15 +130,22 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    public List<TransactionResponse> getTransactionsByRange(String walletId, LocalDateTime start, LocalDateTime end) {
-        return transactionRepository.findByWallet_WalletIdAndCreatedAtBetweenAndActiveTrue(walletId, start, end)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    public List<TransactionResponse> getTransactionsByDateRange(String walletId, LocalDateTime start, LocalDateTime end) {
+        return transactionRepository.findByWallet_WalletIdAndCreatedDatetimeBetweenAndActiveTrue(walletId, start, end) // Updated this line
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<TransactionResponse> getTransactionsByType(String walletId, TransactionType type) {
         return transactionRepository.findByWallet_WalletIdAndTransactionTypeAndActiveTrue(walletId, type)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TransactionResponse> getTransactionsByRange(String walletId, LocalDateTime start, LocalDateTime end) {
+        return List.of();
     }
 
     @Override

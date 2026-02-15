@@ -22,27 +22,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 1. Disable CSRF as we are using JWT/Stateless APIs
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // 2. Enable CORS with our custom configuration
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // 3. Set session management to STATELESS
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-
-                // 4. Disable default login forms
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
-
-                // 5. Configure URL Authorization
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Login & Register
-                        .requestMatchers("/api/wallets/**").permitAll()
-                        .requestMatchers("/api/transactions/**").permitAll()
-                        .requestMatchers("/api/audit/**").permitAll()
+                        // Change this line to match your Controller path
+                        .requestMatchers("/api/v1/accounts/**").permitAll()
+                        .requestMatchers("/api/v1/wallets/**").permitAll()
+                        .requestMatchers("/api/v1/transactions/**").permitAll()
                         .anyRequest().authenticated()
                 );
 

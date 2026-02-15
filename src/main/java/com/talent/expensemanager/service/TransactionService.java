@@ -19,6 +19,8 @@ public interface TransactionService {
 
     void deleteTransaction (String transactionId);
 
+    List<TransactionResponse> getTransactionsByDateRange(String walletId, LocalDateTime start, LocalDateTime end);
+
     List<TransactionResponse> getTransactionsByType(String walletId, TransactionType type);
 
     List<TransactionResponse> getTransactionsByRange(String walletId, LocalDateTime start, LocalDateTime end);

@@ -10,7 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/accounts")
+@CrossOrigin(origins = "http://localhost:3000")
 @RequiredArgsConstructor
 public class AccountController {
 
@@ -40,6 +41,16 @@ public class AccountController {
                 .success(true)
                 .message("Profile retrieved")
                 .data(accountService.getById(id))
+                .build());
+    }
+    @PutMapping("/update/{id}")
+    public ResponseEntity<BaseResponse<AccountResponse>> updateAccount(
+            @PathVariable String id,
+            @RequestBody AccountRequest request) {
+        return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
+                .success(true)
+                .message("Account updated successfully")
+                .data(accountService.updateAccount(id, request))
                 .build());
     }
 
