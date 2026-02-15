@@ -7,11 +7,11 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
-public class WalletResponse {
-    private String walletId;
-    private String accountId;
-    private Double balance;
-    private Double budget;
+@NoArgsConstructor
+public class BaseResponse<T> {
+    private boolean success;
+    private String message;
+    private T data;
+    private String errorCode; // Useful for frontend logic
 }

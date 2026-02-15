@@ -10,5 +10,5 @@ public class AccountRequest {
     private LocalDate dateOfBirth;
     private String email;
     private String password;
-    private boolean isActive;
+    private boolean active;
 }

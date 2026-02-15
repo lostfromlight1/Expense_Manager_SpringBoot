@@ -21,9 +21,11 @@ public class Transaction extends AbstractEntity {
     private MyWallet wallet;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type")
     private TransactionType transactionType;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "category_type")
     private CategoryType categoryType;
 
     private double amount;

@@ -3,6 +3,7 @@ package com.talent.expensemanager.controller;
 import com.talent.expensemanager.request.AccountRequest;
 import com.talent.expensemanager.request.LoginRequest;
 import com.talent.expensemanager.response.AccountResponse;
+import com.talent.expensemanager.response.BaseResponse;
 import com.talent.expensemanager.service.AccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,33 +17,38 @@ public class AccountController {
     private final AccountService accountService;
 
     @PostMapping("/register")
-    public ResponseEntity<AccountResponse> register(@RequestBody AccountRequest request) {
-        return ResponseEntity.ok(accountService.register(request));
+    public ResponseEntity<BaseResponse<AccountResponse>> register(@RequestBody AccountRequest request) {
+        return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
+                .success(true)
+                .message("Account created successfully")
+                .data(accountService.register(request))
+                .build());
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AccountResponse> login(@RequestBody LoginRequest request) {
-        return ResponseEntity.ok(
-                accountService.login(request.getEmail(), request.getPassword())
-        );
+    public ResponseEntity<BaseResponse<AccountResponse>> login(@RequestBody LoginRequest request) {
+        return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
+                .success(true)
+                .message("Login successful")
+                .data(accountService.login(request.getEmail(), request.getPassword()))
+                .build());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<AccountResponse> getAccount(@PathVariable String id) {
-        return ResponseEntity.ok(accountService.getById(id));
+    @GetMapping("/profile/{id}")
+    public ResponseEntity<BaseResponse<AccountResponse>> getAccount(@PathVariable String id) {
+        return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
+                .success(true)
+                .message("Profile retrieved")
+                .data(accountService.getById(id))
+                .build());
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<AccountResponse> updateAccount(
-            @PathVariable String id,
-            @RequestBody AccountRequest request
-    ) {
-        return ResponseEntity.ok(accountService.updateAccount(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAccount(@PathVariable String id) {
+    @DeleteMapping("/terminate/{id}")
+    public ResponseEntity<BaseResponse<Void>> deleteAccount(@PathVariable String id) {
         accountService.deleteAccount(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(BaseResponse.<Void>builder()
+                .success(true)
+                .message("Account and all associated data permanently deleted")
+                .build());
     }
 }

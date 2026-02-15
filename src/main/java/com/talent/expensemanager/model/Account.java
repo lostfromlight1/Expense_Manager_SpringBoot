@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.time.LocalDate;
-
 @Entity
 @Table(name = "accounts")
 @Data
@@ -16,14 +14,18 @@ public class Account extends AbstractEntity {
     @Column(name = "account_id", nullable = false, unique = true)
     private String accountId;
 
-    @Column(nullable = false)
+    @Column(name="name", nullable = false)
     private String name;
 
-    private LocalDate dateOfBirth;
+    @Column(name = "date_of_birth" , nullable = false)
+    private String dateOfBirth;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "email" , nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column(name ="password", nullable = false)
     private String password;
+
+    @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, orphanRemoval = true)
+    private MyWallet wallet;
 }
