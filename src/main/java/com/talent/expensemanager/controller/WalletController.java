@@ -9,7 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/wallets")
+@RequestMapping("/api/v1/wallets")
+@CrossOrigin(origins = "http://localhost:3000")
 @RequiredArgsConstructor
 public class WalletController {
 
@@ -23,7 +24,14 @@ public class WalletController {
                 .data(walletService.createWallet(request))
                 .build());
     }
-
+    @GetMapping("/account/{accountId}")
+    public ResponseEntity<BaseResponse<WalletResponse>> getByAccountId(@PathVariable String accountId) {
+        return ResponseEntity.ok(BaseResponse.<WalletResponse>builder()
+                .success(true)
+                .message("Wallet synced")
+                .data(walletService.getByAccountId(accountId))
+                .build());
+    }
     @GetMapping("/{id}")
     public ResponseEntity<BaseResponse<WalletResponse>> get(@PathVariable String id) {
         return ResponseEntity.ok(BaseResponse.<WalletResponse>builder()
@@ -33,12 +41,26 @@ public class WalletController {
                 .build());
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<BaseResponse<WalletResponse>> update(@PathVariable String id, @RequestBody WalletRequest request) {
+    @PutMapping("/{id}/budget")
+    public ResponseEntity<BaseResponse<WalletResponse>> updateBudget(
+            @PathVariable String id,
+            @RequestBody WalletRequest request) {
         return ResponseEntity.ok(BaseResponse.<WalletResponse>builder()
                 .success(true)
-                .message("Wallet updated successfully")
-                .data(walletService.updateBalanceAndBudget(id, request))
+                .message("Budget updated")
+                .data(walletService.updateBudget(id, request.getBudget()))
+                .build());
+    }
+
+    @PutMapping("/{id}/balance")
+    public ResponseEntity<BaseResponse<WalletResponse>> updateBalance(
+            @PathVariable String id,
+            @RequestParam boolean isIncrement,
+            @RequestBody WalletRequest request) {
+        return ResponseEntity.ok(BaseResponse.<WalletResponse>builder()
+                .success(true)
+                .message(isIncrement ? "Income added" : "Expense deducted")
+                .data(walletService.updateBalance(id, request.getBalance(), isIncrement))
                 .build());
     }
 

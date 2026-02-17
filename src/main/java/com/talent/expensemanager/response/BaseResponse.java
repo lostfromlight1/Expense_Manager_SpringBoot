@@ -13,5 +13,5 @@ public class BaseResponse<T> {
     private boolean success;
     private String message;
     private T data;
-    private String errorCode; // Useful for frontend logic
+    private String errorCode;
 }

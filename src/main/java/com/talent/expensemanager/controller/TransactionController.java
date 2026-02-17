@@ -1,6 +1,5 @@
 package com.talent.expensemanager.controller;
 
-import com.talent.expensemanager.model.enums.TransactionType;
 import com.talent.expensemanager.request.TransactionRequest;
 import com.talent.expensemanager.response.BaseResponse;
 import com.talent.expensemanager.response.MonthlyOverviewResponse;
@@ -15,7 +14,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/transactions")
+@RequestMapping("/api/v1/transactions")
+@CrossOrigin(origins = "http://localhost:3000")
 @RequiredArgsConstructor
 public class TransactionController {
 
@@ -25,17 +25,16 @@ public class TransactionController {
     public ResponseEntity<BaseResponse<TransactionResponse>> create(@RequestBody TransactionRequest request) {
         return ResponseEntity.ok(BaseResponse.<TransactionResponse>builder()
                 .success(true)
-                .message("Transaction recorded successfully")
+                .message("Transaction recorded")
                 .data(transactionService.createTransaction(request))
                 .build());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<BaseResponse<TransactionResponse>> getById(@PathVariable String id) {
-        return ResponseEntity.ok(BaseResponse.<TransactionResponse>builder()
+    @GetMapping("/summary/{walletId}")
+    public ResponseEntity<BaseResponse<MonthlyOverviewResponse>> getSummary(@PathVariable String walletId) {
+        return ResponseEntity.ok(BaseResponse.<MonthlyOverviewResponse>builder()
                 .success(true)
-                .message("Transaction found")
-                .data(transactionService.getByTransactionId(id))
+                .data(transactionService.getMonthlySummary(walletId))
                 .build());
     }
 
@@ -43,20 +42,7 @@ public class TransactionController {
     public ResponseEntity<BaseResponse<List<TransactionResponse>>> getByWallet(@PathVariable String walletId) {
         return ResponseEntity.ok(BaseResponse.<List<TransactionResponse>>builder()
                 .success(true)
-                .message("Wallet transactions retrieved")
                 .data(transactionService.getTransactionsByWalletId(walletId))
-                .build());
-    }
-
-    @GetMapping("/wallet/{walletId}/summary")
-    public ResponseEntity<BaseResponse<MonthlyOverviewResponse>> getSummary(@PathVariable String walletId) {
-        MonthlyOverviewResponse data = transactionService.getMonthlySummary(walletId);
-        String status = data.isBudgetExceeded() ? "Alert: Monthly budget exceeded!" : "Summary retrieved";
-
-        return ResponseEntity.ok(BaseResponse.<MonthlyOverviewResponse>builder()
-                .success(true)
-                .message(status)
-                .data(data)
                 .build());
     }
 
@@ -67,8 +53,16 @@ public class TransactionController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
         return ResponseEntity.ok(BaseResponse.<List<TransactionResponse>>builder()
                 .success(true)
-                .message("Transactions for the selected period")
                 .data(transactionService.getTransactionsByRange(walletId, start, end))
+                .build());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<BaseResponse<TransactionResponse>> update(@PathVariable String id, @RequestBody TransactionRequest request) {
+        return ResponseEntity.ok(BaseResponse.<TransactionResponse>builder()
+                .success(true)
+                .message("Transaction updated")
+                .data(transactionService.updateTransaction(id, request))
                 .build());
     }
 
@@ -77,7 +71,7 @@ public class TransactionController {
         transactionService.deleteTransaction(id);
         return ResponseEntity.ok(BaseResponse.<Void>builder()
                 .success(true)
-                .message("Transaction deleted and balance adjusted")
+                .message("Transaction deleted")
                 .build());
     }
 }

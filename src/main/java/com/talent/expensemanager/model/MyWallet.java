@@ -23,7 +23,7 @@ public class MyWallet extends AbstractEntity {
     @Column(name = "balance")
     private double balance;
 
-    @Column(name = "budget", nullable = false)
+    @Column(name = "budget")
     private double budget;
 
     @OneToMany(mappedBy = "wallet", cascade = CascadeType.ALL, orphanRemoval = true)

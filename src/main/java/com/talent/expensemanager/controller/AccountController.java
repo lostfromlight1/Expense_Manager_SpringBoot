@@ -4,6 +4,7 @@ import com.talent.expensemanager.request.AccountRequest;
 import com.talent.expensemanager.request.LoginRequest;
 import com.talent.expensemanager.response.AccountResponse;
 import com.talent.expensemanager.response.BaseResponse;
+import com.talent.expensemanager.request.PasswordChangeRequest;
 import com.talent.expensemanager.service.AccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -51,6 +52,16 @@ public class AccountController {
                 .success(true)
                 .message("Account updated successfully")
                 .data(accountService.updateAccount(id, request))
+                .build());
+    }
+    @PutMapping("/change-password/{id}")
+    public ResponseEntity<BaseResponse<Void>> changePassword(
+            @PathVariable String id,
+            @RequestBody PasswordChangeRequest request) {
+        accountService.changePassword(id, request.getOldPassword(), request.getNewPassword());
+        return ResponseEntity.ok(BaseResponse.<Void>builder()
+                .success(true)
+                .message("Password updated successfully")
                 .build());
     }
 

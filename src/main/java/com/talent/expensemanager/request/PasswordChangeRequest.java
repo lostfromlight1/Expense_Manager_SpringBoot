@@ -1,0 +1,9 @@
+package com.talent.expensemanager.request;
+
+import lombok.Data;
+
+@Data
+public class PasswordChangeRequest {
+    private String oldPassword;
+    private String newPassword;
+}

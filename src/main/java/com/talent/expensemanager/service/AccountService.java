@@ -12,5 +12,7 @@ public interface AccountService {
 
     AccountResponse updateAccount(String id, AccountRequest request);
 
+    void changePassword(String id, String oldPassword, String newPassword);
+
     void deleteAccount(String id);
 }

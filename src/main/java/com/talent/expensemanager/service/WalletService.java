@@ -6,9 +6,12 @@ import com.talent.expensemanager.response.WalletResponse;
 public interface WalletService {
     WalletResponse createWallet(WalletRequest request);
 
-    WalletResponse updateBalanceAndBudget(String walletId, WalletRequest request);
+    WalletResponse updateBalance(String walletId, Double amount, boolean isIncrement);
+    WalletResponse updateBudget(String walletId, Double newBudget);
 
     WalletResponse getByWalletId(String walletId);
 
     void deleteWallet(String walletId);
+
+    WalletResponse getByAccountId(String accountId);
 }

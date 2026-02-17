@@ -20,8 +20,8 @@ public class Transaction extends AbstractEntity {
     @JoinColumn(name = "wallet_id", nullable = false)
     private MyWallet wallet;
 
+    @Column(name = "transaction_type", nullable = false, updatable = false)
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type")
     private TransactionType transactionType;
 
     @Enumerated(EnumType.STRING)

@@ -3,9 +3,11 @@ package com.talent.expensemanager.serviceimpl;
 import com.talent.expensemanager.model.Account;
 import com.talent.expensemanager.repository.AccountRepository;
 import com.talent.expensemanager.request.AccountRequest;
+import com.talent.expensemanager.request.WalletRequest;
 import com.talent.expensemanager.response.AccountResponse;
 import com.talent.expensemanager.service.AccountService;
 import com.talent.expensemanager.service.AuditService;
+import com.talent.expensemanager.service.WalletService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,10 +23,10 @@ public class AccountServiceImpl implements AccountService {
     private final AccountRepository accountRepository;
     private final AuditService auditService;
     private final PasswordEncoder passwordEncoder;
+    private final WalletService walletService;
 
     @Override
     public AccountResponse register(AccountRequest request) {
-        // Your Repository has existsByEmail, let's use it
         if (accountRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already exists");
         }
@@ -37,20 +39,31 @@ public class AccountServiceImpl implements AccountService {
         account.setDateOfBirth(String.valueOf(request.getDateOfBirth()));
         account.setActive(true);
 
-        accountRepository.save(account);
+        Account savedAccount = accountRepository.save(account);
 
-        auditService.log("REGISTER", "Account", account.getAccountId(), "User created");
+        WalletRequest walletRequest = new WalletRequest();
+        walletRequest.setAccountId(savedAccount.getAccountId());
+        walletRequest.setBalance(0.0);
+        walletRequest.setBudget(0.0);
+        walletService.createWallet(walletRequest);
 
-        return mapToResponse(account);
+        auditService.log("REGISTER", "Account", savedAccount.getAccountId(),
+                "User registered and wallet initialized", savedAccount.getAccountId());
+
+        return mapToResponse(savedAccount);
     }
 
     @Override
     public AccountResponse login(String email, String password) {
         Account account = accountRepository.findByEmail(email)
-                .filter(a -> a.getPassword().equals(password))
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
-        auditService.log("LOGIN", "Account", account.getAccountId(), "User logged in");
+        if (!passwordEncoder.matches(password, account.getPassword())) {
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        auditService.log("LOGIN", "Account", account.getAccountId(),
+                "User logged in successfully", account.getAccountId());
 
         return mapToResponse(account);
     }
@@ -69,14 +82,28 @@ public class AccountServiceImpl implements AccountService {
 
         account.setName(request.getName());
         account.setDateOfBirth(String.valueOf(request.getDateOfBirth()));
-
-        // Explicitly handle the active status for deactivation
         account.setActive(request.isActive());
 
         accountRepository.save(account);
-        auditService.log("UPDATE", "Account", id, "Account updated. Active status: " + request.isActive());
+
+        auditService.log("UPDATE_PROFILE", "Account", id,
+                "Profile details updated. Active: " + request.isActive(), id);
 
         return mapToResponse(account);
+    }
+
+    @Override
+    public void changePassword(String id, String oldPassword, String newPassword) {
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        if (!passwordEncoder.matches(oldPassword, account.getPassword())) {
+            throw new RuntimeException("The old password you entered is incorrect.");
+        }
+        account.setPassword(passwordEncoder.encode(newPassword));
+        accountRepository.save(account);
+
+        auditService.log("CHANGE_PASSWORD", "Account", id, "User changed account password", id);
     }
 
     @Override
@@ -84,8 +111,9 @@ public class AccountServiceImpl implements AccountService {
         Account account = accountRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Account not found"));
 
+        auditService.log("DELETE_ACCOUNT", "Account", id, "Account permanently deleted", id);
+
         accountRepository.delete(account);
-        auditService.log("DELETE", "Account", id, "Account deleted");
     }
 
     private AccountResponse mapToResponse(Account account) {

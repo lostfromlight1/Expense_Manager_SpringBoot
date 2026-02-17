@@ -42,26 +42,67 @@ public class WalletServiceImpl implements WalletService {
         wallet.setActive(true);
 
         walletRepository.save(wallet);
-        auditService.log("CREATE_WALLET", "Wallet", wallet.getWalletId(), "New wallet created");
+
+        auditService.log(
+                "CREATE_WALLET",
+                "Wallet",
+                wallet.getWalletId(),
+                "New wallet created via registration",
+                account.getAccountId()
+        );
+
+        return mapToResponse(wallet);
+    }
+
+    @Override
+    public WalletResponse getByAccountId(String accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new WalletException("Account not found"));
+
+        MyWallet wallet = walletRepository.findByAccount(account)
+                .orElseThrow(() -> new WalletException("No wallet found for this account"));
 
         return mapToResponse(wallet);
     }
 
     @Override
     @Transactional
-    public WalletResponse updateBalanceAndBudget(String walletId, WalletRequest request) {
+    public WalletResponse updateBalance(String walletId, Double amount, boolean isIncrement) {
         MyWallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletException("Wallet not found"));
 
-        if (!wallet.isActive()) {
-            throw new WalletException("Cannot update: The wallet has been deleted");
-        }
-
-        if (request.getBalance() != null) wallet.setBalance(request.getBalance());
-        if (request.getBudget() != null) wallet.setBudget(request.getBudget());
+        double newBalance = isIncrement ? wallet.getBalance() + amount : wallet.getBalance() - amount;
+        wallet.setBalance(newBalance);
 
         walletRepository.save(wallet);
-        auditService.log("UPDATE_WALLET", "Wallet", walletId, "Wallet parameters updated");
+
+        auditService.log(
+                "UPDATE_BALANCE",
+                "Wallet",
+                walletId,
+                (isIncrement ? "Income" : "Expense") + " of " + amount,
+                wallet.getAccount().getAccountId()
+        );
+
+        return mapToResponse(wallet);
+    }
+
+    @Override
+    @Transactional
+    public WalletResponse updateBudget(String walletId, Double newBudget) {
+        MyWallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new WalletException("Wallet not found"));
+
+        wallet.setBudget(newBudget);
+        walletRepository.save(wallet);
+
+        auditService.log(
+                "UPDATE_BUDGET",
+                "Wallet",
+                walletId,
+                "Budget updated to " + newBudget,
+                wallet.getAccount().getAccountId()
+        );
 
         return mapToResponse(wallet);
     }
@@ -87,7 +128,13 @@ public class WalletServiceImpl implements WalletService {
         wallet.setActive(false);
         walletRepository.save(wallet);
 
-        auditService.log("DELETE_WALLET", "Wallet", walletId, "Wallet deactivated");
+        auditService.log(
+                "DELETE_WALLET",
+                "Wallet",
+                walletId,
+                "Wallet deactivated",
+                wallet.getAccount().getAccountId()
+        );
     }
 
     private WalletResponse mapToResponse(MyWallet wallet) {

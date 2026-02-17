@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -34,7 +35,6 @@ public class TransactionServiceImpl implements TransactionService {
         MyWallet wallet = walletRepository.findById(request.getWalletId())
                 .orElseThrow(() -> new TransactionException("Wallet not found"));
 
-        // Business Logic: Adjust Balance
         if (request.getTransactionType() == TransactionType.INCOME) {
             wallet.setBalance(wallet.getBalance() + request.getAmount());
         } else {
@@ -53,12 +53,90 @@ public class TransactionServiceImpl implements TransactionService {
         t.setActive(true);
 
         transactionRepository.save(t);
-        walletRepository.save(wallet); // Save the updated balance
+        walletRepository.save(wallet);
 
-        auditService.log("TRANSACTION_CREATED", "Wallet", wallet.getWalletId(),
-                String.format("%s of %.2f recorded", t.getTransactionType(), t.getAmount()));
+        auditService.log(
+                "TRANSACTION_CREATED",
+                "Wallet",
+                wallet.getWalletId(),
+                String.format("%s of %.2f recorded", t.getTransactionType(), t.getAmount()),
+                wallet.getAccount().getAccountId()
+        );
 
         return mapToResponse(t);
+    }
+
+    @Override
+    @Transactional
+    public TransactionResponse updateTransaction(String id, TransactionRequest request) {
+        Transaction existingTransaction = transactionRepository.findById(id)
+                .orElseThrow(() -> new TransactionException("Transaction not found"));
+
+        double oldAmount = existingTransaction.getAmount();
+        String oldCategory = existingTransaction.getCategoryType().toString();
+
+        TransactionType type = existingTransaction.getTransactionType();
+        MyWallet wallet = existingTransaction.getWallet();
+
+        adjustWalletBalance(wallet, oldAmount, type, true);
+
+        existingTransaction.setAmount(request.getAmount());
+        existingTransaction.setCategoryType(request.getCategoryType());
+        existingTransaction.setUpdatedDatetime(LocalDateTime.now());
+
+        adjustWalletBalance(wallet, request.getAmount(), type, false);
+
+        Transaction updated = transactionRepository.save(existingTransaction);
+        walletRepository.save(wallet);
+
+        String auditMessage = String.format(
+                "Updated %s: Amount changed from %.2f to %.2f, Category from %s to %s",
+                type, oldAmount, request.getAmount(), oldCategory, request.getCategoryType()
+        );
+
+        auditService.log(
+                "TRANSACTION_UPDATED",
+                "Transaction",
+                id,
+                auditMessage,
+                wallet.getAccount().getAccountId()
+        );
+
+        return mapToResponse(updated);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTransaction(String id) {
+        Transaction t = transactionRepository.findById(id)
+                .orElseThrow(() -> new TransactionException("Transaction not found"));
+
+        if (!t.isActive()) throw new TransactionException("Already deleted");
+
+        adjustWalletBalance(t.getWallet(), t.getAmount(), t.getTransactionType(), true);
+
+        t.setActive(false);
+        transactionRepository.save(t);
+        walletRepository.save(t.getWallet());
+
+        auditService.log(
+                "TRANSACTION_DELETED",
+                "Transaction",
+                id,
+                "Balance reversed",
+                t.getWallet().getAccount().getAccountId()
+        );
+    }
+
+    private void adjustWalletBalance(MyWallet wallet, double amount, TransactionType type, boolean isReverse) {
+        if (type == TransactionType.INCOME) {
+            wallet.setBalance(isReverse ? wallet.getBalance() - amount : wallet.getBalance() + amount);
+        } else {
+            if (!isReverse && wallet.getBalance() < amount) {
+                throw new TransactionException("Insufficient funds in wallet");
+            }
+            wallet.setBalance(isReverse ? wallet.getBalance() + amount : wallet.getBalance() - amount);
+        }
     }
 
     @Override
@@ -66,17 +144,17 @@ public class TransactionServiceImpl implements TransactionService {
         MyWallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new TransactionException("Wallet not found"));
 
-        LocalDateTime start = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0);
-        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime start = LocalDateTime.now().withDayOfMonth(1).with(LocalTime.MIN);
+        LocalDateTime end = LocalDateTime.now().with(LocalTime.MAX);
 
         List<Transaction> transactions = transactionRepository.findMonthlyTransactions(walletId, start, end);
 
         double income = transactions.stream()
-                .filter(t -> t.getTransactionType() == TransactionType.INCOME)
+                .filter(t -> t.getTransactionType() == TransactionType.INCOME && t.isActive())
                 .mapToDouble(Transaction::getAmount).sum();
 
         double expense = transactions.stream()
-                .filter(t -> t.getTransactionType() == TransactionType.EXPENSE)
+                .filter(t -> t.getTransactionType() == TransactionType.EXPENSE && t.isActive())
                 .mapToDouble(Transaction::getAmount).sum();
 
         return MonthlyOverviewResponse.builder()
@@ -90,27 +168,11 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    @Transactional
-    public void deleteTransaction(String id) {
-        Transaction t = transactionRepository.findById(id)
-                .orElseThrow(() -> new TransactionException("Transaction not found"));
-
-        if (!t.isActive()) throw new TransactionException("Transaction already deleted");
-
-        MyWallet wallet = t.getWallet();
-
-        // Reverse the balance impact
-        if (t.getTransactionType() == TransactionType.INCOME) {
-            wallet.setBalance(wallet.getBalance() - t.getAmount());
-        } else {
-            wallet.setBalance(wallet.getBalance() + t.getAmount());
-        }
-
-        t.setActive(false);
-        transactionRepository.save(t);
-        walletRepository.save(wallet);
-
-        auditService.log("TRANSACTION_DELETED", "Transaction", id, "Balance reversed");
+    public List<TransactionResponse> getTransactionsByWalletId(String walletId) {
+        return transactionRepository.findByWallet_WalletIdAndActiveTrue(walletId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -122,22 +184,6 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    public List<TransactionResponse> getTransactionsByWalletId(String walletId) {
-        return transactionRepository.findAll().stream()
-                .filter(t -> t.getWallet().getWalletId().equals(walletId) && t.isActive())
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<TransactionResponse> getTransactionsByDateRange(String walletId, LocalDateTime start, LocalDateTime end) {
-        return transactionRepository.findByWallet_WalletIdAndCreatedDatetimeBetweenAndActiveTrue(walletId, start, end) // Updated this line
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
-    }
-
-    @Override
     public List<TransactionResponse> getTransactionsByType(String walletId, TransactionType type) {
         return transactionRepository.findByWallet_WalletIdAndTransactionTypeAndActiveTrue(walletId, type)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
@@ -145,12 +191,10 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     public List<TransactionResponse> getTransactionsByRange(String walletId, LocalDateTime start, LocalDateTime end) {
-        return List.of();
-    }
-
-    @Override
-    public TransactionResponse updateTransaction(String id, TransactionRequest request) {
-        throw new TransactionException("Updates not allowed. Please delete and recreate the transaction.");
+        return transactionRepository.findByWallet_WalletIdAndCreatedDatetimeBetweenAndActiveTrue(walletId, start, end)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     private TransactionResponse mapToResponse(Transaction t) {
