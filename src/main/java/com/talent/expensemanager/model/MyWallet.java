@@ -13,7 +13,7 @@ import java.util.List;
 public class MyWallet extends AbstractEntity {
 
     @Id
-    @Column(name = "wallet_id",  nullable = false, unique = true)
+    @Column(name = "wallet_id", nullable = false, unique = true)
     private String walletId;
 
     @OneToOne

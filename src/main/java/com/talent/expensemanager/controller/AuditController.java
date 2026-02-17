@@ -16,6 +16,7 @@ import java.util.List;
 public class AuditController {
 
     private final AuditService auditService;
+
     @GetMapping("/user/{accountId}")
     public ResponseEntity<BaseResponse<List<AuditResponse>>> getUserLogs(@PathVariable String accountId) {
         return ResponseEntity.ok(BaseResponse.<List<AuditResponse>>builder()
@@ -24,6 +25,7 @@ public class AuditController {
                 .data(auditService.getLogsByUser(accountId))
                 .build());
     }
+
     @GetMapping
     public ResponseEntity<BaseResponse<List<AuditResponse>>> getAllLogs() {
         return ResponseEntity.ok(BaseResponse.<List<AuditResponse>>builder()

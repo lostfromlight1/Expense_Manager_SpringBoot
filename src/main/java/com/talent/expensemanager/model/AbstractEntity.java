@@ -2,6 +2,7 @@ package com.talent.expensemanager.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
 import java.time.LocalDateTime;
 
 @MappedSuperclass
@@ -39,6 +40,7 @@ public abstract class AbstractEntity {
             this.deletedDatetime = LocalDateTime.now();
         }
     }
+
     public Boolean isActive() {
         return this.active;
     }

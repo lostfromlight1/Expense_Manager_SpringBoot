@@ -31,10 +31,14 @@ public class TransactionController {
     }
 
     @GetMapping("/summary/{walletId}")
-    public ResponseEntity<BaseResponse<MonthlyOverviewResponse>> getSummary(@PathVariable String walletId) {
+    public ResponseEntity<BaseResponse<MonthlyOverviewResponse>> getSummary(
+            @PathVariable String walletId,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer year) {
+
         return ResponseEntity.ok(BaseResponse.<MonthlyOverviewResponse>builder()
                 .success(true)
-                .data(transactionService.getMonthlySummary(walletId))
+                .data(transactionService.getMonthlySummary(walletId, month, year))
                 .build());
     }
 

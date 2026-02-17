@@ -24,6 +24,7 @@ public class WalletController {
                 .data(walletService.createWallet(request))
                 .build());
     }
+
     @GetMapping("/account/{accountId}")
     public ResponseEntity<BaseResponse<WalletResponse>> getByAccountId(@PathVariable String accountId) {
         return ResponseEntity.ok(BaseResponse.<WalletResponse>builder()
@@ -32,6 +33,7 @@ public class WalletController {
                 .data(walletService.getByAccountId(accountId))
                 .build());
     }
+
     @GetMapping("/{id}")
     public ResponseEntity<BaseResponse<WalletResponse>> get(@PathVariable String id) {
         return ResponseEntity.ok(BaseResponse.<WalletResponse>builder()

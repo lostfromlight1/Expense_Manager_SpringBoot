@@ -17,11 +17,11 @@ public interface TransactionService {
 
     List<TransactionResponse> getTransactionsByWalletId(String walletId);
 
-    void deleteTransaction (String transactionId);
+    void deleteTransaction(String transactionId);
 
     List<TransactionResponse> getTransactionsByType(String walletId, TransactionType type);
 
     List<TransactionResponse> getTransactionsByRange(String walletId, LocalDateTime start, LocalDateTime end);
 
-    MonthlyOverviewResponse getMonthlySummary(String walletId);
+    MonthlyOverviewResponse getMonthlySummary(String walletId, Integer month, Integer year);
 }

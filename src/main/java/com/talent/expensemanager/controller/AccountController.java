@@ -44,6 +44,7 @@ public class AccountController {
                 .data(accountService.getById(id))
                 .build());
     }
+
     @PutMapping("/update/{id}")
     public ResponseEntity<BaseResponse<AccountResponse>> updateAccount(
             @PathVariable String id,
@@ -54,6 +55,7 @@ public class AccountController {
                 .data(accountService.updateAccount(id, request))
                 .build());
     }
+
     @PutMapping("/change-password/{id}")
     public ResponseEntity<BaseResponse<Void>> changePassword(
             @PathVariable String id,

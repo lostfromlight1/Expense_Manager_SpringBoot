@@ -7,6 +7,7 @@ public interface WalletService {
     WalletResponse createWallet(WalletRequest request);
 
     WalletResponse updateBalance(String walletId, Double amount, boolean isIncrement);
+
     WalletResponse updateBudget(String walletId, Double newBudget);
 
     WalletResponse getByWalletId(String walletId);

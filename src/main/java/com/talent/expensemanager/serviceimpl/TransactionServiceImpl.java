@@ -140,12 +140,16 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     @Override
-    public MonthlyOverviewResponse getMonthlySummary(String walletId) {
+    public MonthlyOverviewResponse getMonthlySummary(String walletId, Integer month, Integer year) {
         MyWallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new TransactionException("Wallet not found"));
 
-        LocalDateTime start = LocalDateTime.now().withDayOfMonth(1).with(LocalTime.MIN);
-        LocalDateTime end = LocalDateTime.now().with(LocalTime.MAX);
+        LocalDateTime now = LocalDateTime.now();
+        int targetMonth = (month != null) ? month : now.getMonthValue();
+        int targetYear = (year != null) ? year : now.getYear();
+
+        LocalDateTime start = LocalDateTime.of(targetYear, targetMonth, 1, 0, 0, 0);
+        LocalDateTime end = start.plusMonths(1).minusNanos(1);
 
         List<Transaction> transactions = transactionRepository.findMonthlyTransactions(walletId, start, end);
 
@@ -160,7 +164,7 @@ public class TransactionServiceImpl implements TransactionService {
         return MonthlyOverviewResponse.builder()
                 .totalIncome(income)
                 .totalExpense(expense)
-                .currentBalance(wallet.getBalance())
+                .currentBalance(wallet.getBalance()) // Current balance is always the total wallet balance
                 .monthlyBudget(wallet.getBudget())
                 .remainingBudget(wallet.getBudget() - expense)
                 .isBudgetExceeded(expense > wallet.getBudget())
