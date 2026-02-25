@@ -10,132 +10,127 @@ import com.talent.expensemanager.response.WalletResponse;
 import com.talent.expensemanager.service.AuditService;
 import com.talent.expensemanager.service.WalletService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
+import java.util.List;
+import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WalletServiceImpl implements WalletService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(WalletServiceImpl.class);
     private final WalletRepository walletRepository;
     private final AccountRepository accountRepository;
     private final AuditService auditService;
 
     @Override
-    @Transactional
-    public WalletResponse createWallet(WalletRequest request) {
-        Account account = accountRepository.findById(request.getAccountId())
-                .orElseThrow(() -> new WalletException("Account not found with ID: " + request.getAccountId()));
-
-        if (walletRepository.findByAccount(account).isPresent()) {
-            throw new WalletException("Account already has an active wallet.");
-        }
-
-        MyWallet wallet = new MyWallet();
-        wallet.setWalletId("WAL-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
-        wallet.setAccount(account);
-        wallet.setBalance(request.getBalance() != null ? request.getBalance() : 0.0);
-        wallet.setBudget(request.getBudget() != null ? request.getBudget() : 0.0);
-        wallet.setActive(true);
-
-        walletRepository.save(wallet);
-
-        auditService.log(
-                "CREATE_WALLET",
-                "Wallet",
-                wallet.getWalletId(),
-                "New wallet created via registration",
-                account.getAccountId()
-        );
-
-        return mapToResponse(wallet);
+    public List<WalletResponse> getAllWallets() {
+        LOGGER.info("getAllWallets SYSTEM : Admin fetching all wallets.");
+        return walletRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public WalletResponse getByAccountId(String accountId) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new WalletException("Account not found"));
+    @Transactional
+    public WalletResponse createWallet(WalletRequest request) {
+        LOGGER.info("createWallet SYSTEM : {} is started now.", request.getAccountId());
 
-        MyWallet wallet = walletRepository.findByAccount(account)
-                .orElseThrow(() -> new WalletException("No wallet found for this account"));
+        Account account = accountRepository.findById(request.getAccountId())
+                .orElseThrow(() -> new WalletException("Account not found with ID: " + request.getAccountId()));
 
-        return mapToResponse(wallet);
+        MyWallet wallet = new MyWallet();
+        wallet.setWalletId("WLT-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+        wallet.setAccount(account);
+        wallet.setBalance(request.getBalance());
+        wallet.setBudget(request.getBudget());
+        wallet.setActive(true);
+
+        MyWallet savedWallet = walletRepository.save(wallet);
+        auditService.log("CREATE_WALLET", "Wallet", savedWallet.getWalletId(), "Wallet created", account.getAccountId());
+
+        return mapToResponse(savedWallet);
     }
 
     @Override
     @Transactional
     public WalletResponse updateBalance(String walletId, Double amount, boolean isIncrement) {
-        MyWallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new WalletException("Wallet not found"));
+        MyWallet wallet = findWalletAndValidateAccess(walletId);
+        String role = wallet.getAccount().getRole().getName();
+        LOGGER.info("updateBalance {} : {} is started now.", role, walletId);
 
-        double newBalance = isIncrement ? wallet.getBalance() + amount : wallet.getBalance() - amount;
-        wallet.setBalance(newBalance);
+        if (isIncrement) {
+            wallet.setBalance(wallet.getBalance() + amount);
+        } else {
+            wallet.setBalance(wallet.getBalance() - amount);
+        }
 
-        walletRepository.save(wallet);
+        auditService.log("UPDATE_BALANCE", "Wallet", walletId,
+                (isIncrement ? "Income: " : "Expense: ") + amount, wallet.getAccount().getAccountId());
 
-        auditService.log(
-                "UPDATE_BALANCE",
-                "Wallet",
-                walletId,
-                (isIncrement ? "Income" : "Expense") + " of " + amount,
-                wallet.getAccount().getAccountId()
-        );
-
-        return mapToResponse(wallet);
+        return mapToResponse(walletRepository.save(wallet));
     }
 
     @Override
     @Transactional
     public WalletResponse updateBudget(String walletId, Double newBudget) {
-        MyWallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new WalletException("Wallet not found"));
+        MyWallet wallet = findWalletAndValidateAccess(walletId);
+        LOGGER.info("updateBudget : {} started.", walletId);
 
         wallet.setBudget(newBudget);
-        walletRepository.save(wallet);
+        auditService.log("UPDATE_BUDGET", "Wallet", walletId, "New budget: " + newBudget, wallet.getAccount().getAccountId());
 
-        auditService.log(
-                "UPDATE_BUDGET",
-                "Wallet",
-                walletId,
-                "Budget updated to " + newBudget,
-                wallet.getAccount().getAccountId()
-        );
-
-        return mapToResponse(wallet);
+        return mapToResponse(walletRepository.save(wallet));
     }
 
     @Override
     public WalletResponse getByWalletId(String walletId) {
-        MyWallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new WalletException("Wallet not found"));
-
-        if (!wallet.isActive()) {
-            throw new WalletException("Wallet is deactivated");
-        }
-
+        MyWallet wallet = findWalletAndValidateAccess(walletId);
         return mapToResponse(wallet);
     }
 
     @Override
     @Transactional
     public void deleteWallet(String walletId) {
-        MyWallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new WalletException("Wallet not found"));
-
+        MyWallet wallet = findWalletAndValidateAccess(walletId);
         wallet.setActive(false);
         walletRepository.save(wallet);
+        auditService.log("DELETE_WALLET", "Wallet", walletId, "Wallet deactivated", wallet.getAccount().getAccountId());
+    }
 
-        auditService.log(
-                "DELETE_WALLET",
-                "Wallet",
-                walletId,
-                "Wallet deactivated",
-                wallet.getAccount().getAccountId()
-        );
+    @Override
+    public WalletResponse getByAccountId(String accountId) {
+        validateAccess(accountId);
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new WalletException("Account not found"));
+        MyWallet wallet = walletRepository.findByAccount(account)
+                .orElseThrow(() -> new WalletException("Wallet not found"));
+        return mapToResponse(wallet);
+    }
+
+    // Helper to check ownership or Admin role
+    private MyWallet findWalletAndValidateAccess(String walletId) {
+        MyWallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new WalletException("Wallet not found"));
+        validateAccess(wallet.getAccount().getAccountId());
+        return wallet;
+    }
+
+    private void validateAccess(String resourceOwnerId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserId = (String) auth.getPrincipal(); // Assuming ID is stored in principal
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin && !resourceOwnerId.equals(currentUserId)) {
+            throw new WalletException("Access Denied: You cannot access this wallet.");
+        }
     }
 
     private WalletResponse mapToResponse(MyWallet wallet) {

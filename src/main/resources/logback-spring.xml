@@ -22,7 +22,7 @@
         <file>${LOG_DIR}/expense_manager.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
-            <fileNamePattern>${LOG_DIR}/reward.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>${LOG_DIR}/expensemanager.%d{yyyy-MM-dd}.log</fileNamePattern>
             <!-- keep 30 days worth of history -->
             <maxHistory>180</maxHistory>
         </rollingPolicy>

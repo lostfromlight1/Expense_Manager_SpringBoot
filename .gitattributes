@@ -1,3 +1,7 @@
-/gradlew text eol=lf
-*.bat text eol=crlf
-*.jar binary
+# Standardize line endings
+/gradlew        text eol=lf
+*.bat           text eol=crlf
+*.jar           binary
+
+# Ensure all text files are normalized
+* text=auto

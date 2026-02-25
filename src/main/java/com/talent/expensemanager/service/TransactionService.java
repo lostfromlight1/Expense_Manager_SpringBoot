@@ -13,7 +13,7 @@ public interface TransactionService {
 
     TransactionResponse updateTransaction(String id, TransactionRequest request);
 
-    TransactionResponse getByTransactionId(String id);
+    TransactionResponse getByTransactionId(String id); // Added back
 
     List<TransactionResponse> getTransactionsByWalletId(String walletId);
 
@@ -23,5 +23,5 @@ public interface TransactionService {
 
     List<TransactionResponse> getTransactionsByRange(String walletId, LocalDateTime start, LocalDateTime end);
 
-    MonthlyOverviewResponse getMonthlySummary(String walletId, Integer month, Integer year);
+    MonthlyOverviewResponse getMonthlyOverview(String walletId, Integer month, Integer year);
 }

@@ -12,4 +12,7 @@ public class AccountResponse {
     private String email;
     private String dateOfBirth;
     private Boolean active;
+    private String role;
+    private String token;
+    private String refreshToken;
 }

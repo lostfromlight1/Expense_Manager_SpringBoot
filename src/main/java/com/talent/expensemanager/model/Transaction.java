@@ -28,5 +28,8 @@ public class Transaction extends AbstractEntity {
     @Column(name = "category_type")
     private CategoryType categoryType;
 
+    @Column(name = "description")
+    private String description;
+    
     private double amount;
 }

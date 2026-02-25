@@ -10,4 +10,5 @@ public class TransactionRequest {
     private TransactionType transactionType;
     private CategoryType categoryType;
     private Double amount;
+    private String description;
 }
