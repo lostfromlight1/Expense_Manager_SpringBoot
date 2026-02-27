@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -124,11 +125,16 @@ public class WalletServiceImpl implements WalletService {
 
     private void validateAccess(String resourceOwnerId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserId = (String) auth.getPrincipal(); // Assuming ID is stored in principal
+        if (auth == null) throw new WalletException("Not authenticated");
+
+        String currentUserId = (String) auth.getPrincipal();
+
         boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                .anyMatch(a -> Objects.equals(a.getAuthority(), "ROLE_ADMIN") ||
+                        Objects.equals(a.getAuthority(), "ADMIN"));
 
         if (!isAdmin && !resourceOwnerId.equals(currentUserId)) {
+            LOGGER.warn("Unauthorized access attempt: User {} tried to access resource of User {}", currentUserId, resourceOwnerId);
             throw new WalletException("Access Denied: You cannot access this wallet.");
         }
     }

@@ -60,11 +60,17 @@ public class AccountController {
     }
 
     @PostMapping("/refresh-token")
-    public ResponseEntity<BaseResponse<AccountResponse>> refresh(@RequestParam String refreshToken) {
+    public ResponseEntity<BaseResponse<AccountResponse>> refresh(
+            @RequestParam String accountId,
+            @RequestParam String refreshToken) {
+        LOGGER.info("REST request to refresh token for account: {}", accountId);
         if (jwtService.validateRefreshToken(refreshToken)) {
-            String accountId = jwtService.extractAccountId(refreshToken);
+            String tokenAccountId = jwtService.extractAccountId(refreshToken);
 
-            // Fetch account to get name and role for the new Access Token
+            if (!tokenAccountId.equals(accountId)) {
+                throw new AccountException("Token does not belong to the provided account ID");
+            }
+
             AccountResponse account = accountService.getById(accountId);
 
             String newAccessToken = jwtService.generateToken(
@@ -75,10 +81,15 @@ public class AccountController {
 
             return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
                     .httpStatusCode(HttpStatus.OK.value())
+                    .apiName("refreshToken")
+                    .apiId("auth-refresh")
                     .message("Token refreshed successfully")
                     .data(AccountResponse.builder()
+                            .accountId(accountId)
                             .token(newAccessToken)
-                            .refreshToken(refreshToken) // Keep using the same refresh token
+                            .refreshToken(refreshToken)
+                            .role(account.getRole())
+                            .name(account.getName())
                             .build())
                     .build());
         }
@@ -86,7 +97,7 @@ public class AccountController {
     }
 
     @GetMapping("/profile/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal")
+    @PreAuthorize("@permissionSecurity.hasAccountAccess(#id)")
     public ResponseEntity<BaseResponse<AccountResponse>> getAccount(@PathVariable String id) {
         LOGGER.info("REST request to get profile for ID: {}", id);
 
@@ -119,7 +130,7 @@ public class AccountController {
     }
 
     @PutMapping("/update/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal")
+    @PreAuthorize("@permissionSecurity.hasAccountAccess(#id)")
     public ResponseEntity<BaseResponse<AccountResponse>> updateAccount(
             @PathVariable String id,
             @RequestBody AccountRequest request) {
@@ -138,7 +149,7 @@ public class AccountController {
     }
 
     @PutMapping("/change-password/{id}")
-    @PreAuthorize("#id == authentication.principal")
+    @PreAuthorize("@permissionSecurity.isAccountOwner(#id)")
     public ResponseEntity<BaseResponse<Void>> changePassword(
             @PathVariable String id,
             @RequestBody PasswordChangeRequest request) {

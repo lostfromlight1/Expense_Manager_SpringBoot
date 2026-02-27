@@ -8,6 +8,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -18,32 +19,42 @@ public class AuthenticationService {
 
     public Authentication doAuthentication(HttpServletRequest request) {
         String requestApiKey = request.getHeader("X-expense-api-key");
-        // Using "token" header as per your request
         String token = request.getHeader("token");
+        String path = request.getServletPath();
 
-        // 1. Verify App API Key
+        // 1. ALWAYS verify App API Key for every single request
         if (requestApiKey == null || !apiKeyConfiguration.getApikey().equals(requestApiKey)) {
             throw new BadCredentialsException("Invalid or missing API Key");
         }
 
-        // 2. Verify JWT Token exists
+        // 2. Routes that only need API Key (no Token)
+        List<String> apiKeyOnlyRoutes = List.of(
+                "/api/v1/accounts/register",
+                "/api/v1/accounts/login",
+                "/api/v1/accounts/refresh-token"
+        );
+
+        if (apiKeyOnlyRoutes.contains(path)) {
+            // Return a special "Public" authority.
+            // This marks the request as 'Authenticated' so Spring Security allows it.
+            return new ApiKeyAuthentication("PUBLIC_USER",
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_PUBLIC")));
+        }
+
+        // 3. For all other routes, verify JWT Token
         if (token == null || token.isEmpty()) {
             throw new BadCredentialsException("Missing or invalid Authorization token");
         }
 
         try {
-            // Extract data from the token
             String accountId = jwtService.extractAccountId(token);
             String roleName = jwtService.extractRole(token);
 
-            // Validate that the token isn't expired
             if (!jwtService.isTokenValid(token)) {
                 throw new BadCredentialsException("Token has expired");
             }
 
             var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + roleName));
-
-            // Principal is the UUID/ID from the token
             return new ApiKeyAuthentication(accountId, authorities);
         } catch (Exception e) {
             throw new BadCredentialsException("Expired or invalid JWT");

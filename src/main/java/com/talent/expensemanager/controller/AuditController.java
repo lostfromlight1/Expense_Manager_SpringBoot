@@ -6,6 +6,7 @@ import com.talent.expensemanager.service.AuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class AuditController {
     private final AuditService auditService;
 
     @GetMapping("/user/{accountId}")
+    @PreAuthorize("@permissionSecurity.hasAccountAccess(#accountId)")
     public ResponseEntity<BaseResponse<List<AuditResponse>>> getUserLogs(@PathVariable String accountId) {
         return ResponseEntity.ok(BaseResponse.<List<AuditResponse>>builder()
                 .httpStatusCode(HttpStatus.OK.value())
@@ -29,6 +31,7 @@ public class AuditController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<List<AuditResponse>>> getAllLogs() {
         return ResponseEntity.ok(BaseResponse.<List<AuditResponse>>builder()
                 .httpStatusCode(HttpStatus.OK.value())

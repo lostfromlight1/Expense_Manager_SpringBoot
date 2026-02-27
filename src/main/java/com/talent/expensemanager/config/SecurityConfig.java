@@ -35,7 +35,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/accounts/register", "/api/v1/accounts/login", "/api/v1/accounts/refresh-token").permitAll()
+                        .requestMatchers("/test-ui").permitAll()
+                        .requestMatchers(
+                                "/api/v1/accounts/register",
+                                "/api/v1/accounts/login",
+                                "/api/v1/accounts/refresh-token"
+                        ).authenticated()
                         .requestMatchers("/api/v1/**").authenticated()
                 )
                 .addFilterBefore(authenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -43,13 +48,13 @@ public class SecurityConfig {
         return http.build();
     }
 
-
     @Bean
     public FilterRegistrationBean<AuthenticationFilter> registration(AuthenticationFilter filter) {
         FilterRegistrationBean<AuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -58,24 +63,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // Standard local development origins
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "http://localhost:5173"
-        ));
-
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:3001", "http://localhost:5173"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-
-        // Ensure your custom API Key header is allowed for CORS preflight requests
-        configuration.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "Accept",
-                "X-expense-api-key"
-        ));
-
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-expense-api-key", "token"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

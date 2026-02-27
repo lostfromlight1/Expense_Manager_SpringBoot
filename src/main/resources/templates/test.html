@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Expense Manager API Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .box { border: 1px solid #ccc; padding: 15px; margin-top: 10px; border-radius: 5px; }
+        pre { background: #f4f4f4; padding: 10px; }
+    </style>
+</head>
+<body>
+<h1>Thymeleaf + API Test</h1>
+
+<div class="box">
+    <h3>Step 1: Get Profile (Requires Headers)</h3>
+    <input type="text" id="apiKey" placeholder="X-expense-api-key">
+    <input type="text" id="token" placeholder="JWT Token">
+    <input type="text" id="userId" placeholder="User ID">
+    <button onclick="testApi()">Fetch Profile</button>
+</div>
+
+<div class="box">
+    <h3>Response:</h3>
+    <pre id="output">Click the button to see results...</pre>
+</div>
+
+<script>
+    async function testApi() {
+        const apiKey = document.getElementById('apiKey').value;
+        const token = document.getElementById('token').value;
+        const userId = document.getElementById('userId').value;
+        const output = document.getElementById('output');
+
+        try {
+            const response = await fetch(`/api/v1/accounts/profile/${userId}`, {
+                method: 'GET',
+                headers: {
+                    'X-expense-api-key': apiKey,
+                    'token': token,
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await response.json();
+            output.innerText = JSON.stringify(data, null, 2);
+        } catch (err) {
+            output.innerText = "Error: " + err.message;
+        }
+    }
+</script>
+</body>
+</html>

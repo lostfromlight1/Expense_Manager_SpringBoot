@@ -23,7 +23,7 @@ public class WalletController {
     private final WalletService walletService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or #request.accountId == authentication.principal")
+    @PreAuthorize("@permissionSecurity.hasAccountAccess(#request.accountId)")
     public ResponseEntity<BaseResponse<WalletResponse>> create(@RequestBody WalletRequest request) {
         LOGGER.info("REST request to create wallet for account: {}", request.getAccountId());
 
@@ -55,7 +55,7 @@ public class WalletController {
     }
 
     @GetMapping("/account/{accountId}")
-    @PreAuthorize("hasRole('ADMIN') or #accountId == authentication.principal")
+    @PreAuthorize("@permissionSecurity.hasAccountAccess(#accountId)")
     public ResponseEntity<BaseResponse<WalletResponse>> getByAccountId(@PathVariable String accountId) {
         LOGGER.info("REST request to get wallet for account ID: {}", accountId);
 
@@ -71,7 +71,7 @@ public class WalletController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @walletSecurity.isWalletOwner(#id)")
+    @PreAuthorize("@permissionSecurity.hasWalletAccess(#id)")
     public ResponseEntity<BaseResponse<WalletResponse>> get(@PathVariable String id) {
         LOGGER.info("REST request to get wallet details for ID: {}", id);
 
@@ -87,7 +87,7 @@ public class WalletController {
     }
 
     @PutMapping("/{id}/budget")
-    @PreAuthorize("hasRole('ADMIN') or @walletSecurity.isWalletOwner(#id)")
+    @PreAuthorize("@permissionSecurity.hasWalletAccess(#id)")
     public ResponseEntity<BaseResponse<WalletResponse>> updateBudget(
             @PathVariable String id,
             @RequestBody WalletRequest request) {
@@ -106,7 +106,7 @@ public class WalletController {
     }
 
     @PutMapping("/{id}/balance")
-    @PreAuthorize("hasRole('ADMIN') or @walletSecurity.isWalletOwner(#id)")
+    @PreAuthorize("@permissionSecurity.hasWalletAccess(#id)")
     public ResponseEntity<BaseResponse<WalletResponse>> updateBalance(
             @PathVariable String id,
             @RequestParam boolean isIncrement,

@@ -32,11 +32,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
-        // Added refresh-token to the list of public endpoints
-        return path.equals("/api/v1/accounts/register") ||
-                path.equals("/api/v1/accounts/login") ||
-                path.equals("/api/v1/accounts/refresh-token");
+        return false;
     }
 
     @Override

@@ -24,4 +24,6 @@ public interface TransactionService {
     List<TransactionResponse> getTransactionsByRange(String walletId, LocalDateTime start, LocalDateTime end);
 
     MonthlyOverviewResponse getMonthlyOverview(String walletId, Integer month, Integer year);
+
+    List<TransactionResponse> getAllTransactions();
 }
