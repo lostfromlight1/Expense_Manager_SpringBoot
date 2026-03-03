@@ -6,7 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import java.util.Collection;
 
 public class ApiKeyAuthentication extends AbstractAuthenticationToken {
-    private final String accountId; // Renamed from apiKey for clarity
+    private final String accountId;
 
     public ApiKeyAuthentication(String accountId, Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
@@ -21,6 +21,6 @@ public class ApiKeyAuthentication extends AbstractAuthenticationToken {
 
     @Override
     public Object getPrincipal() {
-        return accountId; // Returns the UUID of the user
+        return accountId;
     }
 }

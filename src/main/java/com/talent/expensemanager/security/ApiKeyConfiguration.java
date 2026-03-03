@@ -7,10 +7,10 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Configuration
 public class ApiKeyConfiguration {
-    @Value("${jwt.apikey}")
+    @Value("${jwt.api-key}")
     private String apikey;
 
-    @Value("${jwt.secrettoken}")
+    @Value("${jwt.secret-token}")
     private String secretToken;
 
 }

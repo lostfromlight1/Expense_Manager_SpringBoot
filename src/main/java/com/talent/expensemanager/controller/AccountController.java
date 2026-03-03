@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -30,11 +31,9 @@ public class AccountController {
 
     @PostMapping("/register")
     public ResponseEntity<BaseResponse<AccountResponse>> register(@Valid @RequestBody AccountRequest request) {
-        LOGGER.info("REST request to register account for email: {}", request.getEmail());
-
         AccountResponse response = accountService.register(request);
+        LOGGER.info("Successfully registered account for email: {}", request.getEmail());
 
-        LOGGER.info("Account successfully registered with ID: {}", response.getAccountId());
         return ResponseEntity.status(HttpStatus.CREATED).body(BaseResponse.<AccountResponse>builder()
                 .httpStatusCode(HttpStatus.CREATED.value())
                 .apiName("register")
@@ -46,11 +45,9 @@ public class AccountController {
 
     @PostMapping("/login")
     public ResponseEntity<BaseResponse<AccountResponse>> login(@Valid @RequestBody LoginRequest request) {
-        LOGGER.info("REST request to login account: {}", request.getEmail());
-
         AccountResponse response = accountService.login(request.getEmail(), request.getPassword());
-
         LOGGER.info("Login successful for Account ID: {}", response.getAccountId());
+
         return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
                 .httpStatusCode(HttpStatus.OK.value())
                 .apiName("sign-in")
@@ -64,47 +61,39 @@ public class AccountController {
     public ResponseEntity<BaseResponse<AccountResponse>> refresh(
             @RequestParam String accountId,
             @RequestParam String refreshToken) {
-        LOGGER.info("REST request to refresh token for account: {}", accountId);
+
         if (jwtService.validateRefreshToken(refreshToken)) {
             String tokenAccountId = jwtService.extractAccountId(refreshToken);
 
             if (!tokenAccountId.equals(accountId)) {
-                throw new AccountException("Token does not belong to the provided account ID");
+                throw new AccountException("Security Alert: Token does not belong to this account.");
             }
 
             AccountResponse account = accountService.getById(accountId);
+            String newAccessToken = jwtService.generateToken(account.getAccountId(), account.getName(), account.getRole());
 
-            String newAccessToken = jwtService.generateToken(
-                    account.getAccountId(),
-                    account.getName(),
-                    account.getRole()
-            );
+            account.setToken(newAccessToken);
+            account.setRefreshToken(refreshToken);
+
+            LOGGER.info("Token refreshed for account: {}", accountId);
 
             return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
                     .httpStatusCode(HttpStatus.OK.value())
                     .apiName("refreshToken")
                     .apiId("auth-refresh")
                     .message("Token refreshed successfully")
-                    .data(AccountResponse.builder()
-                            .accountId(accountId)
-                            .token(newAccessToken)
-                            .refreshToken(refreshToken)
-                            .role(account.getRole())
-                            .name(account.getName())
-                            .build())
+                    .data(account)
                     .build());
         }
-        throw new AccountException("Invalid or expired refresh token");
+        throw new AccountException("Session expired. Please login again.");
     }
 
     @GetMapping("/profile/{id}")
     @PreAuthorize("@permissionSecurity.hasAccountAccess(#id)")
     public ResponseEntity<BaseResponse<AccountResponse>> getAccount(@PathVariable String id) {
-        LOGGER.info("REST request to get profile for ID: {}", id);
-
         AccountResponse response = accountService.getById(id);
+        LOGGER.info("Retrieved profile for ID: {}", id);
 
-        LOGGER.info("Profile retrieved successfully for ID: {}", id);
         return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
                 .httpStatusCode(HttpStatus.OK.value())
                 .apiName("getProfile")
@@ -113,13 +102,28 @@ public class AccountController {
                 .data(response)
                 .build());
     }
+    @GetMapping("/me")
+    public ResponseEntity<BaseResponse<AccountResponse>> getMyProfile(Authentication authentication) {
+        String currentUserId = (String) authentication.getPrincipal();
+
+        LOGGER.info("Fetching self-profile for Account ID: {}", currentUserId);
+
+        AccountResponse response = accountService.getById(currentUserId);
+
+        return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
+                .httpStatusCode(HttpStatus.OK.value())
+                .apiName("getMyProfile")
+                .apiId("profile-me-get")
+                .message("Current user profile retrieved successfully.")
+                .data(response)
+                .build());
+    }
 
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<List<AccountResponse>>> getAllAccounts() {
-        LOGGER.info("REST request to fetch all user accounts by ADMIN");
-
         List<AccountResponse> users = accountService.getAllAccounts();
+        LOGGER.info("Admin fetched all user accounts");
 
         return ResponseEntity.ok(BaseResponse.<List<AccountResponse>>builder()
                 .httpStatusCode(HttpStatus.OK.value())
@@ -130,16 +134,15 @@ public class AccountController {
                 .build());
     }
 
-    @PutMapping("/update/{id}")
+    @PutMapping("/{id}")
     @PreAuthorize("@permissionSecurity.hasAccountAccess(#id)")
     public ResponseEntity<BaseResponse<AccountResponse>> updateAccount(
             @PathVariable String id,
             @RequestBody AccountRequest request) {
-        LOGGER.info("REST request to update account: {}", id);
 
         AccountResponse response = accountService.updateAccount(id, request);
+        LOGGER.info("Account updated: {}", id);
 
-        LOGGER.info("Account updated successfully for ID: {}", id);
         return ResponseEntity.ok(BaseResponse.<AccountResponse>builder()
                 .httpStatusCode(HttpStatus.OK.value())
                 .apiName("updateProfile")
@@ -149,37 +152,34 @@ public class AccountController {
                 .build());
     }
 
-    @PutMapping("/change-password/{id}")
+    @PutMapping("/{id}/password")
     @PreAuthorize("@permissionSecurity.isAccountOwner(#id)")
     public ResponseEntity<BaseResponse<Void>> changePassword(
             @PathVariable String id,
             @RequestBody PasswordChangeRequest request) {
-        LOGGER.info("REST request to change password for account ID: {}", id);
+
+        LOGGER.info("Password change initiated for account: {}", id);
 
         accountService.changePassword(id, request.getOldPassword(), request.getNewPassword());
 
-        LOGGER.info("Password changed successfully for account ID: {}", id);
         return ResponseEntity.ok(BaseResponse.<Void>builder()
                 .httpStatusCode(HttpStatus.OK.value())
                 .apiName("changePassword")
-                .apiId("password-put")
                 .message("Password updated successfully.")
                 .build());
     }
 
-    @DeleteMapping("/terminate/{id}")
+    @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<Void>> deleteAccount(@PathVariable String id) {
-        LOGGER.info("REST request to delete account ID: {}", id);
-
         accountService.deleteAccount(id);
+        LOGGER.info("Account permanently deleted: {}", id);
 
-        LOGGER.info("Account and associated data deleted for ID: {}", id);
         return ResponseEntity.ok(BaseResponse.<Void>builder()
                 .httpStatusCode(HttpStatus.OK.value())
                 .apiName("deleteAccount")
                 .apiId("terminate-delete")
-                .message("Account and all associated data permanently deleted.")
+                .message("Account and associated data permanently deleted.")
                 .build());
     }
 }

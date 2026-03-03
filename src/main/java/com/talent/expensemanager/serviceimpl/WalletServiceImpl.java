@@ -1,5 +1,6 @@
 package com.talent.expensemanager.serviceimpl;
 
+import com.talent.expensemanager.exceptions.ResourceNotFoundException;
 import com.talent.expensemanager.exceptions.WalletException;
 import com.talent.expensemanager.model.Account;
 import com.talent.expensemanager.model.MyWallet;
@@ -12,14 +13,11 @@ import com.talent.expensemanager.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -32,29 +30,26 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     public List<WalletResponse> getAllWallets() {
-        LOGGER.info("getAllWallets SYSTEM : Admin fetching all wallets.");
         return walletRepository.findAll().stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     @Transactional
     public WalletResponse createWallet(WalletRequest request) {
-        LOGGER.info("createWallet SYSTEM : {} is started now.", request.getAccountId());
-
         Account account = accountRepository.findById(request.getAccountId())
-                .orElseThrow(() -> new WalletException("Account not found with ID: " + request.getAccountId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Cannot create wallet: Account not found with ID: " + request.getAccountId()));
 
         MyWallet wallet = new MyWallet();
-        wallet.setWalletId("WLT-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+        wallet.setWalletId("WLT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         wallet.setAccount(account);
         wallet.setBalance(request.getBalance());
         wallet.setBudget(request.getBudget());
         wallet.setActive(true);
 
         MyWallet savedWallet = walletRepository.save(wallet);
-        auditService.log("CREATE_WALLET", "Wallet", savedWallet.getWalletId(), "Wallet created", account.getAccountId());
+        auditService.log("CREATE_WALLET", "Wallet", savedWallet.getWalletId(), "Initial balance: " + savedWallet.getBalance(), account.getAccountId());
 
         return mapToResponse(savedWallet);
     }
@@ -62,44 +57,49 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     public WalletResponse updateBalance(String walletId, Double amount, boolean isIncrement) {
-        MyWallet wallet = findWalletAndValidateAccess(walletId);
-        String role = wallet.getAccount().getRole().getName();
-        LOGGER.info("updateBalance {} : {} is started now.", role, walletId);
+        MyWallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found with ID: " + walletId));
 
+        double oldBalance = wallet.getBalance();
         if (isIncrement) {
-            wallet.setBalance(wallet.getBalance() + amount);
+            wallet.setBalance(oldBalance + amount);
         } else {
-            wallet.setBalance(wallet.getBalance() - amount);
+            if (oldBalance < amount) {
+                throw new WalletException("Insufficient funds in wallet.");
+            }
+            wallet.setBalance(oldBalance - amount);
         }
 
-        auditService.log("UPDATE_BALANCE", "Wallet", walletId,
-                (isIncrement ? "Income: " : "Expense: ") + amount, wallet.getAccount().getAccountId());
-
-        return mapToResponse(walletRepository.save(wallet));
+        MyWallet savedWallet = walletRepository.save(wallet);
+        auditService.log("UPDATE_BALANCE", "Wallet", walletId, (isIncrement ? "Income: " : "Expense: ") + amount, wallet.getAccount().getAccountId());
+        return mapToResponse(savedWallet);
     }
 
     @Override
     @Transactional
     public WalletResponse updateBudget(String walletId, Double newBudget) {
-        MyWallet wallet = findWalletAndValidateAccess(walletId);
-        LOGGER.info("updateBudget : {} started.", walletId);
+        MyWallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found with ID: " + walletId));
 
         wallet.setBudget(newBudget);
+        MyWallet savedWallet = walletRepository.save(wallet);
         auditService.log("UPDATE_BUDGET", "Wallet", walletId, "New budget: " + newBudget, wallet.getAccount().getAccountId());
-
-        return mapToResponse(walletRepository.save(wallet));
+        return mapToResponse(savedWallet);
     }
 
     @Override
     public WalletResponse getByWalletId(String walletId) {
-        MyWallet wallet = findWalletAndValidateAccess(walletId);
+        MyWallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found with ID: " + walletId));
         return mapToResponse(wallet);
     }
 
     @Override
     @Transactional
     public void deleteWallet(String walletId) {
-        MyWallet wallet = findWalletAndValidateAccess(walletId);
+        MyWallet wallet = walletRepository.findById(walletId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found with ID: " + walletId));
+
         wallet.setActive(false);
         walletRepository.save(wallet);
         auditService.log("DELETE_WALLET", "Wallet", walletId, "Wallet deactivated", wallet.getAccount().getAccountId());
@@ -107,35 +107,10 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     public WalletResponse getByAccountId(String accountId) {
-        validateAccess(accountId);
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new WalletException("Account not found"));
-        MyWallet wallet = walletRepository.findByAccount(account)
-                .orElseThrow(() -> new WalletException("Wallet not found"));
+        MyWallet wallet = walletRepository.findByAccount_AccountId(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("No wallet associated with Account ID: " + accountId));
+
         return mapToResponse(wallet);
-    }
-
-    private MyWallet findWalletAndValidateAccess(String walletId) {
-        MyWallet wallet = walletRepository.findById(walletId)
-                .orElseThrow(() -> new WalletException("Wallet not found"));
-        validateAccess(wallet.getAccount().getAccountId());
-        return wallet;
-    }
-
-    private void validateAccess(String resourceOwnerId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) throw new WalletException("Not authenticated");
-
-        String currentUserId = (String) auth.getPrincipal();
-
-        boolean isAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> Objects.equals(a.getAuthority(), "ROLE_ADMIN") ||
-                        Objects.equals(a.getAuthority(), "ADMIN"));
-
-        if (!isAdmin && !resourceOwnerId.equals(currentUserId)) {
-            LOGGER.warn("Unauthorized access attempt: User {} tried to access resource of User {}", currentUserId, resourceOwnerId);
-            throw new WalletException("Access Denied: You cannot access this wallet.");
-        }
     }
 
     private WalletResponse mapToResponse(MyWallet wallet) {

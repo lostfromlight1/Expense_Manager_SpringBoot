@@ -1,6 +1,9 @@
 package com.talent.expensemanager.model.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.Getter;
+
+import java.util.stream.Stream;
 
 @Getter
 public enum CategoryType {
@@ -22,5 +25,13 @@ public enum CategoryType {
 
     CategoryType(TransactionType type) {
         this.type = type;
+    }
+
+    @JsonCreator
+    public static CategoryType fromString(String value) {
+        return Stream.of(CategoryType.values())
+                .filter(c -> c.name().equalsIgnoreCase(value))
+                .findFirst()
+                .orElse(null);
     }
 }

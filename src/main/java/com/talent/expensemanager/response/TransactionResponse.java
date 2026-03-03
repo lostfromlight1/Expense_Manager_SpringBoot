@@ -16,7 +16,7 @@ public class TransactionResponse {
     private String transactionId;
     private String walletId;
     private TransactionType transactionType;
-    private CategoryType categoryType; // 2. Change String to CategoryType
+    private CategoryType categoryType;
     private Double amount;
     private String description;
     private Double walletBalanceAfterTransaction;

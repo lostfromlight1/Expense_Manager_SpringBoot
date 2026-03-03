@@ -1,6 +1,7 @@
 package com.talent.expensemanager.serviceimpl;
 
 import com.talent.expensemanager.exceptions.AccountException;
+import com.talent.expensemanager.exceptions.ResourceNotFoundException;
 import com.talent.expensemanager.model.Account;
 import com.talent.expensemanager.model.Role;
 import com.talent.expensemanager.repository.AccountRepository;
@@ -17,7 +18,6 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -42,10 +42,10 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public AccountResponse register(AccountRequest request) {
-        LOGGER.info("register {} : {} is started now.", "SYSTEM", request.getEmail());
+        LOGGER.info("Registering new account for email: {}", request.getEmail());
 
         if (accountRepository.existsByEmail(request.getEmail())) {
-            throw new AccountException("Email already exists");
+            throw new AccountException("An account with this email already exists.");
         }
 
         Account account = new Account();
@@ -69,6 +69,7 @@ public class AccountServiceImpl implements AccountService {
                 savedAccount.getRole().getName()
         );
         String refreshToken = jwtService.generateRefreshToken(savedAccount.getAccountId());
+
         var auth = new ApiKeyAuthentication(savedAccount.getAccountId(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + savedAccount.getRole().getName())));
         SecurityContextHolder.getContext().setAuthentication(auth);
@@ -83,16 +84,16 @@ public class AccountServiceImpl implements AccountService {
                 "User registered and wallet initialized", savedAccount.getAccountId());
 
         AccountResponse response = mapToResponse(savedAccount);
-        response.setToken(accessToken);       // Attach Access Token
-        response.setRefreshToken(refreshToken); // Attach Refresh Token
+        response.setToken(accessToken);
+        response.setRefreshToken(refreshToken);
 
-        LOGGER.info("\nregister {} : {} ALL SUCCESS", savedAccount.getRole().getName(), savedAccount.getAccountId());
+        LOGGER.info("Successfully registered account: {}", savedAccount.getAccountId());
         return response;
     }
 
     @Override
     public AccountResponse login(String email, String password) {
-        LOGGER.info("login {} : {} is started now.", "GUEST", email);
+        LOGGER.info("Attempting login for email: {}", email);
 
         Account account = accountRepository.findByEmail(email)
                 .orElseThrow(() -> new AccountException("Invalid credentials"));
@@ -101,43 +102,36 @@ public class AccountServiceImpl implements AccountService {
             throw new AccountException("Invalid email or password");
         }
 
-        auditService.log("LOGIN", "Account", account.getAccountId(),
-                "User logged in successfully", account.getAccountId());
         String accessToken = jwtService.generateToken(
                 account.getAccountId(),
                 account.getName(),
                 account.getRole().getName()
         );
-
         String refreshToken = jwtService.generateRefreshToken(account.getAccountId());
 
-        LOGGER.info("\nlogin {} : {} ALL SUCCESS", account.getRole().getName(), account.getAccountId());
+        auditService.log("LOGIN", "Account", account.getAccountId(),
+                "User logged in successfully", account.getAccountId());
 
         AccountResponse response = mapToResponse(account);
-
         response.setToken(accessToken);
         response.setRefreshToken(refreshToken);
 
+        LOGGER.info("Login successful for account: {}", account.getAccountId());
         return response;
     }
 
     @Override
     public AccountResponse getById(String id) {
+        LOGGER.info("Fetching account details for ID: {}", id);
         Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new AccountException("Account not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));
 
-        LOGGER.info("getById {} : {} is started now.", account.getRole().getName(), id);
-
-        AccountResponse response = mapToResponse(account);
-
-        LOGGER.info("\ngetById {} : {} ALL SUCCESS", account.getRole().getName(), id);
-        return response;
+        return mapToResponse(account);
     }
 
     @Override
     public List<AccountResponse> getAllAccounts() {
-        LOGGER.info("getAllAccounts {} : SYSTEM is started now.", "ADMIN");
-
+        LOGGER.info("Fetching all user accounts for admin view");
         List<AccountResponse> accounts = accountRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
@@ -146,17 +140,14 @@ public class AccountServiceImpl implements AccountService {
         auditService.log("ADMIN_VIEW_ALL", "Account", "SYSTEM",
                 "Admin viewed all user accounts", "ADMIN");
 
-        LOGGER.info("\ngetAllAccounts {} : ALL SUCCESS. Total users: {}", "ADMIN", accounts.size());
         return accounts;
     }
 
     @Override
     public AccountResponse updateAccount(String id, AccountRequest request) {
+        LOGGER.info("Updating profile for account: {}", id);
         Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new AccountException("Account not found"));
-
-        String role = account.getRole().getName();
-        LOGGER.info("updateAccount {} : {} is started now.", role, id);
+                .orElseThrow(() -> new ResourceNotFoundException("Cannot update: Account not found with ID: " + id));;
 
         account.setName(request.getName());
         account.setDateOfBirth(String.valueOf(request.getDateOfBirth()));
@@ -165,42 +156,39 @@ public class AccountServiceImpl implements AccountService {
         accountRepository.save(account);
 
         auditService.log("UPDATE_PROFILE", "Account", id,
-                "Profile details updated. Active: " + request.isActive(), id);
+                "Profile details updated. Active status: " + request.isActive(), id);
 
-        LOGGER.info("\nupdateAccount {} : {} ALL SUCCESS", role, id);
+        LOGGER.info("Successfully updated account: {}", id);
         return mapToResponse(account);
     }
 
     @Override
     public void changePassword(String id, String oldPassword, String newPassword) {
+        LOGGER.info("Updating password for account: {}", id);
         Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new AccountException("Account not found"));
-
-        String role = account.getRole().getName();
-        LOGGER.info("changePassword {} : {} is started now.", role, id);
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found with ID: " + id));
 
         if (!passwordEncoder.matches(oldPassword, account.getPassword())) {
             throw new AccountException("The old password you entered is incorrect.");
         }
+
         account.setPassword(passwordEncoder.encode(newPassword));
         accountRepository.save(account);
 
         auditService.log("CHANGE_PASSWORD", "Account", id, "User changed account password", id);
-        LOGGER.info("\nchangePassword {} : {} ALL SUCCESS", role, id);
+        LOGGER.info("Successfully changed password for account: {}", id);
     }
 
     @Override
     public void deleteAccount(String id) {
+        LOGGER.info("Deleting account: {}", id);
         Account account = accountRepository.findById(id)
-                .orElseThrow(() -> new AccountException("Account not found"));
-
-        String role = account.getRole().getName();
-        LOGGER.info("deleteAccount {} : {} is started now.", role, id);
+                .orElseThrow(() -> new ResourceNotFoundException("Cannot delete: Account not found with ID: " + id));
 
         auditService.log("DELETE_ACCOUNT", "Account", id, "Account permanently deleted", id);
 
         accountRepository.delete(account);
-        LOGGER.info("\ndeleteAccount {} : {} ALL SUCCESS", role, id);
+        LOGGER.info("Successfully deleted account: {}", id);
     }
 
     private AccountResponse mapToResponse(Account account) {

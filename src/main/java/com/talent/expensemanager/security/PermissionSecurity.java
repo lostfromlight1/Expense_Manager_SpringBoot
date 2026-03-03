@@ -18,7 +18,9 @@ public class PermissionSecurity {
 
     private String getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || Objects.equals(auth.getPrincipal(), "anonymousUser")) return null;
+        if (auth == null || !auth.isAuthenticated() || Objects.equals(auth.getPrincipal(), "anonymousUser")) {
+            return null;
+        }
         return (String) auth.getPrincipal();
     }
 
@@ -26,36 +28,34 @@ public class PermissionSecurity {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) return false;
         return auth.getAuthorities().stream()
-                .anyMatch(a -> Objects.equals(a.getAuthority(), "ROLE_ADMIN") || a.getAuthority().equals("ADMIN"));
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ADMIN"));
     }
 
     public boolean isAccountOwner(String accountId) {
-        String currentUserId = getCurrentUserId();
-        return currentUserId != null && currentUserId.equals(accountId);
+        return Objects.equals(getCurrentUserId(), accountId);
     }
 
     public boolean hasAccountAccess(String accountId) {
-        if (isAdmin()) return true;
-        return isAccountOwner(accountId);
+        return isAdmin() || isAccountOwner(accountId);
     }
 
     public boolean hasWalletAccess(String walletId) {
         if (isAdmin()) return true;
         String currentUserId = getCurrentUserId();
-        if (currentUserId == null) return false;
+        if (currentUserId == null || walletId == null) return false;
 
         return walletRepository.findById(walletId)
-                .map(w -> w.getAccount().getAccountId().equals(currentUserId))
+                .map(w -> Objects.equals(w.getAccount().getAccountId(), currentUserId))
                 .orElse(false);
     }
 
     public boolean hasTransactionAccess(String transactionId) {
         if (isAdmin()) return true;
         String currentUserId = getCurrentUserId();
-        if (currentUserId == null) return false;
+        if (currentUserId == null || transactionId == null) return false;
 
         return transactionRepository.findById(transactionId)
-                .map(t -> t.getWallet().getAccount().getAccountId().equals(currentUserId))
+                .map(t -> Objects.equals(t.getWallet().getAccount().getAccountId(), currentUserId))
                 .orElse(false);
     }
 }

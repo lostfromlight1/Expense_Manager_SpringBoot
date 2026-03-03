@@ -9,6 +9,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
@@ -22,17 +24,13 @@ import java.io.PrintWriter;
 @Component
 public class AuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationFilter.class);
     private final AuthenticationService authenticationService;
     private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
     @Autowired
     public AuthenticationFilter(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        return false;
     }
 
     @Override
@@ -43,12 +41,9 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String requestUri = request.getRequestURI();
-
-        // Extract a cleaner apiId for your BaseResponse
         String apiId = request.getServletPath().replace("/api/v1/", "");
 
         try {
-            // This now handles JWT extraction and API Key validation
             Authentication authentication = authenticationService.doAuthentication(request);
 
             if (authentication != null) {
@@ -58,18 +53,14 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
 
         } catch (Exception e) {
-            // Log the error here if you have a LOGGER
+            LOGGER.error("Authentication failed for URI: {} - Error: {}", requestUri, e.getMessage());
             handleException(response, requestUri, apiId, e);
-        } finally {
-            // Optional: Explicitly clear context after request finishes in stateless apps
-            // SecurityContextHolder.clearContext();
         }
     }
 
     private void handleException(HttpServletResponse response, String uri, String apiId, Exception e) throws IOException {
         SecurityContextHolder.clearContext();
 
-        // Use 401 for Auth issues
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
@@ -77,21 +68,12 @@ public class AuthenticationFilter extends OncePerRequestFilter {
                 .httpStatusCode(HttpServletResponse.SC_UNAUTHORIZED)
                 .apiName(uri)
                 .apiId(apiId)
-                .message(e.getMessage()) // This will show "Expired JWT" or "Invalid API Key"
+                .message(e.getMessage())
                 .build();
 
         try (PrintWriter writer = response.getWriter()) {
             writer.print(MAPPER.writeValueAsString(errorResponse));
             writer.flush();
         }
-    }
-    public String convertObjectToJson(Object object) throws JsonProcessingException {
-        if (object == null) return null;
-        return MAPPER.writeValueAsString(object);
-    }
-
-    @Override
-    public void destroy() {
-        super.destroy();
     }
 }
