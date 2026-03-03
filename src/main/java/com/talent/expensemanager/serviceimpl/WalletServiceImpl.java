@@ -115,7 +115,6 @@ public class WalletServiceImpl implements WalletService {
         return mapToResponse(wallet);
     }
 
-    // Helper to check ownership or Admin role
     private MyWallet findWalletAndValidateAccess(String walletId) {
         MyWallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new WalletException("Wallet not found"));

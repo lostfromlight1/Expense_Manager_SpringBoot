@@ -52,7 +52,6 @@ public class TransactionServiceImpl implements TransactionService {
         t.setDescription(request.getDescription());
         t.setActive(true);
 
-        // Adjust Balance
         double oldBalance = wallet.getBalance();
         if (t.getTransactionType() == TransactionType.INCOME) {
             wallet.setBalance(oldBalance + t.getAmount());

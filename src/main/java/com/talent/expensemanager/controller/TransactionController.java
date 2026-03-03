@@ -5,6 +5,7 @@ import com.talent.expensemanager.response.BaseResponse;
 import com.talent.expensemanager.response.MonthlyOverviewResponse;
 import com.talent.expensemanager.response.TransactionResponse;
 import com.talent.expensemanager.service.TransactionService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -22,10 +23,9 @@ public class TransactionController {
 
     private final TransactionService transactionService;
 
-    // 1. Create: Must own the wallet being used
     @PostMapping
     @PreAuthorize("@permissionSecurity.hasWalletAccess(#request.walletId)")
-    public ResponseEntity<BaseResponse<TransactionResponse>> create(@RequestBody TransactionRequest request) {
+    public ResponseEntity<BaseResponse<TransactionResponse>> create(@Valid @RequestBody TransactionRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(BaseResponse.<TransactionResponse>builder()
                 .httpStatusCode(HttpStatus.CREATED.value())
                 .apiName("createTransaction")
@@ -35,7 +35,6 @@ public class TransactionController {
                 .build());
     }
 
-    // 2. Summary: Must own the wallet
     @GetMapping("/summary/{walletId}")
     @PreAuthorize("@permissionSecurity.hasWalletAccess(#walletId)")
     public ResponseEntity<BaseResponse<MonthlyOverviewResponse>> getSummary(
@@ -51,7 +50,6 @@ public class TransactionController {
                 .build());
     }
 
-    // 3. View by Wallet: Must own the wallet
     @GetMapping("/wallet/{walletId}")
     @PreAuthorize("@permissionSecurity.hasWalletAccess(#walletId)")
     public ResponseEntity<BaseResponse<List<TransactionResponse>>> getByWallet(@PathVariable String walletId) {
@@ -64,7 +62,6 @@ public class TransactionController {
                 .build());
     }
 
-    // 4. View by Range: Must own the wallet
     @GetMapping("/wallet/{walletId}/range")
     @PreAuthorize("@permissionSecurity.hasWalletAccess(#walletId)")
     public ResponseEntity<BaseResponse<List<TransactionResponse>>> getByRange(
@@ -80,10 +77,9 @@ public class TransactionController {
                 .build());
     }
 
-    // 5. Update: Must own the specific transaction (or be Admin)
     @PutMapping("/{id}")
     @PreAuthorize("@permissionSecurity.hasTransactionAccess(#id)")
-    public ResponseEntity<BaseResponse<TransactionResponse>> update(@PathVariable String id, @RequestBody TransactionRequest request) {
+    public ResponseEntity<BaseResponse<TransactionResponse>> update(@PathVariable String id, @Valid @RequestBody TransactionRequest request) {
         return ResponseEntity.ok(BaseResponse.<TransactionResponse>builder()
                 .httpStatusCode(HttpStatus.OK.value())
                 .apiName("updateTransaction")
@@ -93,7 +89,6 @@ public class TransactionController {
                 .build());
     }
 
-    // 6. Delete: Must own the specific transaction (or be Admin)
     @DeleteMapping("/{id}")
     @PreAuthorize("@permissionSecurity.hasTransactionAccess(#id)")
     public ResponseEntity<BaseResponse<Void>> delete(@PathVariable String id) {
@@ -106,7 +101,6 @@ public class TransactionController {
                 .build());
     }
 
-    // 7. Admin Only: Get absolutely everything in the system
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BaseResponse<List<TransactionResponse>>> getAll() {

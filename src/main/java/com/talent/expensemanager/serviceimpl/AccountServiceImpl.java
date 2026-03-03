@@ -63,14 +63,12 @@ public class AccountServiceImpl implements AccountService {
 
         Account savedAccount = accountRepository.save(account);
 
-        // --- NEW: Generate tokens so the user is logged in immediately ---
         String accessToken = jwtService.generateToken(
                 savedAccount.getAccountId(),
                 savedAccount.getName(),
                 savedAccount.getRole().getName()
         );
         String refreshToken = jwtService.generateRefreshToken(savedAccount.getAccountId());
-        // -----------------------------------------------------------------
         var auth = new ApiKeyAuthentication(savedAccount.getAccountId(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + savedAccount.getRole().getName())));
         SecurityContextHolder.getContext().setAuthentication(auth);

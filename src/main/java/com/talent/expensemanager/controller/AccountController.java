@@ -8,6 +8,7 @@ import com.talent.expensemanager.response.AccountResponse;
 import com.talent.expensemanager.response.BaseResponse;
 import com.talent.expensemanager.security.JwtService;
 import com.talent.expensemanager.service.AccountService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +29,7 @@ public class AccountController {
     private final JwtService jwtService;
 
     @PostMapping("/register")
-    public ResponseEntity<BaseResponse<AccountResponse>> register(@RequestBody AccountRequest request) {
+    public ResponseEntity<BaseResponse<AccountResponse>> register(@Valid @RequestBody AccountRequest request) {
         LOGGER.info("REST request to register account for email: {}", request.getEmail());
 
         AccountResponse response = accountService.register(request);
@@ -44,7 +45,7 @@ public class AccountController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<BaseResponse<AccountResponse>> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<BaseResponse<AccountResponse>> login(@Valid @RequestBody LoginRequest request) {
         LOGGER.info("REST request to login account: {}", request.getEmail());
 
         AccountResponse response = accountService.login(request.getEmail(), request.getPassword());

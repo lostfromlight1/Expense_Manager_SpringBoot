@@ -22,12 +22,10 @@ public class AuthenticationService {
         String token = request.getHeader("token");
         String path = request.getServletPath();
 
-        // 1. ALWAYS verify App API Key for every single request
         if (requestApiKey == null || !apiKeyConfiguration.getApikey().equals(requestApiKey)) {
             throw new BadCredentialsException("Invalid or missing API Key");
         }
 
-        // 2. Routes that only need API Key (no Token)
         List<String> apiKeyOnlyRoutes = List.of(
                 "/api/v1/accounts/register",
                 "/api/v1/accounts/login",
@@ -35,13 +33,10 @@ public class AuthenticationService {
         );
 
         if (apiKeyOnlyRoutes.contains(path)) {
-            // Return a special "Public" authority.
-            // This marks the request as 'Authenticated' so Spring Security allows it.
             return new ApiKeyAuthentication("PUBLIC_USER",
                     Collections.singletonList(new SimpleGrantedAuthority("ROLE_PUBLIC")));
         }
 
-        // 3. For all other routes, verify JWT Token
         if (token == null || token.isEmpty()) {
             throw new BadCredentialsException("Missing or invalid Authorization token");
         }

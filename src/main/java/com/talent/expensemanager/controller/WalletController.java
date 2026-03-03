@@ -4,6 +4,7 @@ import com.talent.expensemanager.request.WalletRequest;
 import com.talent.expensemanager.response.BaseResponse;
 import com.talent.expensemanager.response.WalletResponse;
 import com.talent.expensemanager.service.WalletService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +25,7 @@ public class WalletController {
 
     @PostMapping
     @PreAuthorize("@permissionSecurity.hasAccountAccess(#request.accountId)")
-    public ResponseEntity<BaseResponse<WalletResponse>> create(@RequestBody WalletRequest request) {
+    public ResponseEntity<BaseResponse<WalletResponse>> create(@Valid @RequestBody WalletRequest request) {
         LOGGER.info("REST request to create wallet for account: {}", request.getAccountId());
 
         WalletResponse response = walletService.createWallet(request);
@@ -110,7 +111,7 @@ public class WalletController {
     public ResponseEntity<BaseResponse<WalletResponse>> updateBalance(
             @PathVariable String id,
             @RequestParam boolean isIncrement,
-            @RequestBody WalletRequest request) {
+            @Valid @RequestBody WalletRequest request) {
         LOGGER.info("REST request to update balance for wallet: {} | Amount: {} | Increment: {}",
                 id, request.getBalance(), isIncrement);
 
