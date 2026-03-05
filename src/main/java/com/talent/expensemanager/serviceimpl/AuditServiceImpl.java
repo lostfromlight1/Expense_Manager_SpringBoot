@@ -36,11 +36,13 @@ public class AuditServiceImpl implements AuditService {
     }
 
     @Override
-    public void logError(String action, String details, String performedBy, String errorCode) {
+    public void logError(String action, String details, String performedBy, String ignoredCode) {
+        String traceId = org.slf4j.MDC.get("traceId");
+
         AuditLog logEntry = AuditLog.builder()
                 .action("ERROR_" + action)
                 .entityName("SYSTEM_EXCEPTION")
-                .entityId(errorCode)
+                .entityId(traceId != null ? traceId : "SYSTEM")
                 .details(details)
                 .performedBy(performedBy != null ? performedBy : "SYSTEM")
                 .timestamp(LocalDateTime.now())

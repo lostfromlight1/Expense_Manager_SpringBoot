@@ -43,6 +43,10 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         String requestUri = request.getRequestURI();
         String apiId = request.getServletPath().replace("/api/v1/", "");
 
+        if (requestUri.contains("/swagger-ui") || requestUri.contains("/v3/api-docs")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         try {
             Authentication authentication = authenticationService.doAuthentication(request);
 

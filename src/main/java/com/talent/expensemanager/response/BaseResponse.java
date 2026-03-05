@@ -15,6 +15,7 @@ public class BaseResponse<T> {
     private Integer httpStatusCode;
     private String apiName;
     private String apiId;
+    private String traceId;
     private String message;
 
     @Builder.Default
