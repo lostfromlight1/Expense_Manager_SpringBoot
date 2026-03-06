@@ -2,11 +2,13 @@ package com.talent.expensemanager.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @MappedSuperclass
 @Data
+@EntityListeners(AuditingEntityListener.class)
 public abstract class AbstractEntity {
 
     @Column(name = "created_at", updatable = false)

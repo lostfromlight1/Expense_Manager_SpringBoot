@@ -2,11 +2,13 @@ package com.talent.expensemanager.serviceimpl;
 
 import com.talent.expensemanager.exceptions.ResourceNotFoundException;
 import com.talent.expensemanager.exceptions.TransactionException;
+import com.talent.expensemanager.model.Category;
 import com.talent.expensemanager.model.MyWallet;
 import com.talent.expensemanager.model.Transaction;
 import com.talent.expensemanager.model.enums.TransactionType;
 import com.talent.expensemanager.repository.TransactionRepository;
 import com.talent.expensemanager.repository.WalletRepository;
+import com.talent.expensemanager.repository.CategoryRepository;
 import com.talent.expensemanager.request.TransactionRequest;
 import com.talent.expensemanager.response.MonthlyOverviewResponse;
 import com.talent.expensemanager.response.TransactionResponse;
@@ -34,6 +36,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRepository transactionRepository;
     private final WalletRepository walletRepository;
     private final AuditService auditService;
+    private final CategoryRepository categoryRepository;
 
     @Override
     @Transactional
@@ -43,15 +46,18 @@ public class TransactionServiceImpl implements TransactionService {
         MyWallet wallet = walletRepository.findById(request.getWalletId())
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
-        if (request.getCategoryType().getType() != request.getTransactionType()) {
-            throw new TransactionException("Category " + request.getCategoryType() + " is invalid for " + request.getTransactionType());
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+        if (category.getTransactionType() != request.getTransactionType()) {
+            throw new TransactionException("Category '" + category.getName() + "' is invalid for " + request.getTransactionType());
         }
 
         Transaction t = new Transaction();
         t.setTransactionId("TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         t.setWallet(wallet);
         t.setTransactionType(request.getTransactionType());
-        t.setCategoryType(request.getCategoryType());
+        t.setCategory(category);
         t.setAmount(request.getAmount());
         t.setDescription(request.getDescription());
         t.setActive(true);
@@ -121,10 +127,15 @@ public class TransactionServiceImpl implements TransactionService {
     public TransactionResponse updateTransaction(String id, TransactionRequest request) {
         Transaction t = transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
+        if (category.getTransactionType() != request.getTransactionType()) {
+            throw new TransactionException("Category '" + category.getName() + "' is invalid for " + request.getTransactionType());
+        }
         LOGGER.info("Updating transaction metadata for ID: {}", id);
         t.setDescription(request.getDescription());
-        t.setCategoryType(request.getCategoryType());
+        t.setCategory(category);
 
         Transaction updated = transactionRepository.save(t);
 
@@ -160,7 +171,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .transactionId(t.getTransactionId())
                 .walletId(t.getWallet().getWalletId())
                 .transactionType(t.getTransactionType())
-                .categoryType(t.getCategoryType())
+                .categoryId(t.getCategory().getCategoryId())
                 .amount(t.getAmount())
                 .description(t.getDescription())
                 .walletBalanceAfterTransaction(t.getWallet().getBalance())

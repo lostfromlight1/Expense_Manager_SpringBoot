@@ -1,6 +1,5 @@
 package com.talent.expensemanager.model;
 
-import com.talent.expensemanager.model.enums.CategoryType;
 import com.talent.expensemanager.model.enums.TransactionType;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -20,16 +19,16 @@ public class Transaction extends AbstractEntity {
     @JoinColumn(name = "wallet_id", nullable = false)
     private MyWallet wallet;
 
+    @ManyToOne
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
+
     @Column(name = "transaction_type", nullable = false, updatable = false)
     @Enumerated(EnumType.STRING)
     private TransactionType transactionType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "category_type")
-    private CategoryType categoryType;
-
     @Column(name = "description")
     private String description;
-    
+
     private double amount;
 }

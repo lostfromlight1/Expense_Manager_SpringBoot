@@ -1,6 +1,5 @@
 package com.talent.expensemanager.request;
 
-import com.talent.expensemanager.model.enums.CategoryType;
 import com.talent.expensemanager.model.enums.TransactionType;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -13,8 +12,8 @@ public class TransactionRequest {
     @NotNull(message = "Transaction type is required")
     private TransactionType transactionType;
 
-    @NotNull(message = "Category type is required")
-    private CategoryType categoryType;
+    @NotNull(message = "Category ID is required")
+    private Long categoryId;
 
     @NotNull(message = "Amount is required")
     @Positive(message = "Amount must be greater than zero")
